@@ -2,6 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGame } from '../src/game.ts'
 import { projectGame } from '../src/multiplayer.ts'
+import { shouldRestoreRoom } from '../src/roomSession.ts'
+
+test('초대 링크가 없으면 지난 방에 다시 들어가지 않는다', () => {
+  assert.equal(shouldRestoreRoom('', 'ABC123'), false)
+  assert.equal(shouldRestoreRoom('?room=ABC123', 'ABC123'), true)
+  assert.equal(shouldRestoreRoom('?room=NEW123', 'ABC123'), false)
+})
 
 test('서버 화면은 각자 본 탄환 정보만 전달한다', () => {
   const state = createGame(() => 0.2)
