@@ -1,5 +1,5 @@
 {
-  "contract": "THE CHAMBER is a Korean Buckshot Roulette mechanics prototype with solo CPU play and a two-player Convex room. The first load begins with eight empty item slots and one live plus three blank shells. On later loads, opening a supply box grants two random items to each side, up to eight held items. Convex holds the chamber order, validates turns and items, and sends each player only their private shell information. The gun aims toward the chosen target before firing. Target: keyboard and touch at 390x844 and 1440x900.",
+  "contract": "THE CHAMBER is a Korean Buckshot Roulette mechanics prototype with solo CPU play and a two-player Convex room. The first load begins with eight empty item slots and four to six randomized shells, including at least one live and one blank. On later loads, opening a supply box grants two random items to each side, up to eight held items. Convex holds the chamber order, validates turns and items, and sends each player only their private shell information. The gun aims toward the chosen target before firing. Target: keyboard and touch at 390x844 and 1440x900.",
   "targetViewports": ["390x844", "1440x900"],
   "accessibility": {
     "status": "pass",

@@ -69,7 +69,7 @@ export function canUseVisibleItem(game: MultiplayerGame, slot: number): boolean 
   if (item === 'cigarette') return game.health.you < 4
   if (item === 'saw') return !game.saw
   if (item === 'phone') return game.remaining >= 2
-  if (item === 'handcuffs') return !game.skipOpponent
+  if (item === 'handcuffs' || item === 'jammer') return !game.skipOpponent
   if (item === 'adrenaline') return game.inventory.dealer.some((target) => canTakeVisibleItem(game, target))
   return true
 }
@@ -79,5 +79,5 @@ export function canTakeVisibleItem(game: MultiplayerGame, item: Item): boolean {
     (item !== 'cigarette' || game.health.you < 4) &&
     (item !== 'saw' || !game.saw) &&
     (item !== 'phone' || game.remaining >= 2) &&
-    (item !== 'handcuffs' || !game.skipOpponent)
+    ((item !== 'handcuffs' && item !== 'jammer') || !game.skipOpponent)
 }

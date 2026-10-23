@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  applyItem, createGame, getCounts, grantItems, makeChamber,
+  applyItem, createGame, getCounts, grantItems, makeChamber, MULTIPLAYER_ITEM_POOL,
   shoot, takeStolenItem,
 } from '../src/game.ts'
 
@@ -13,7 +13,15 @@ test('첫 장전의 아이템 슬롯은 비어 있다', () => {
   const game = createGame(() => 0.2)
   assert.deepEqual(game.inventory, { you: [], dealer: [] })
   assert.equal(game.status, 'playing')
-  assert.deepEqual(getCounts(game.chamber), { live: 1, blank: 3 })
+  assert.equal(game.chamber.length, 4)
+})
+
+test('첫 장전의 탄환 수와 실탄 비율도 매 판 달라진다', () => {
+  const low = createGame(() => 0.1)
+  const high = createGame(() => 0.8)
+  assert.deepEqual(getCounts(low.chamber), { live: 1, blank: 3 })
+  assert.deepEqual(getCounts(high.chamber), { live: 5, blank: 1 })
+  assert.equal(high.chamber.length, 6)
 })
 
 test('장전에는 실탄과 공포탄이 모두 들어가며 개수가 맞는다', () => {
@@ -86,6 +94,16 @@ test('수갑은 상대의 다음 턴을 한 번 건너뛴다', () => {
   assert.equal(next.skip.dealer, false)
 })
 
+test('멀티플레이 상자에는 전파 방해 장치가 나오고 상대 턴을 건너뛴다', () => {
+  const waiting = { ...state(['live', 'blank']), status: 'dealing' }
+  const dealt = grantItems(waiting, () => 0.99, MULTIPLAYER_ITEM_POOL)
+  assert.ok(dealt.inventory.you.includes('jammer'))
+  const jammed = applyItem(state(['live', 'blank'], ['jammer']), 'you', 0)
+  assert.equal(jammed.skip.dealer, true)
+  const next = shoot(jammed, 'you', 'dealer')
+  assert.equal(next.turn, 'you')
+})
+
 test('아드레날린으로 상대 아이템을 골라 즉시 사용한다', () => {
   const injected = applyItem(state(['live', 'blank'], ['adrenaline'], ['saw']), 'you', 0)
   assert.equal(injected.stealing, 'you')
@@ -99,6 +117,7 @@ test('유통기한 약은 회복 또는 피해를 준다', () => {
   const starting = { ...state(['live', 'blank'], ['medicine']), health: { you: 2, dealer: 4 } }
   assert.equal(applyItem(starting, 'you', 0, () => 0).health.you, 4)
   assert.equal(applyItem(starting, 'you', 0, () => 0.9).health.you, 1)
+  assert.equal(applyItem({ ...starting, chamber: ['blank', 'live'] }, 'you', 0, () => 0).health.you, 4)
 })
 
 test('체력이 0이 되면 게임이 끝나고 이후 행동을 받지 않는다', () => {

@@ -2,7 +2,7 @@ export type Shell = 'live' | 'blank'
 export type Player = 'you' | 'dealer'
 export type Item =
   | 'magnifier' | 'beer' | 'saw' | 'cigarette' | 'handcuffs'
-  | 'phone' | 'inverter' | 'medicine' | 'adrenaline'
+  | 'phone' | 'inverter' | 'medicine' | 'adrenaline' | 'jammer'
 
 export const MAX_HEALTH = 4
 export const MAX_ITEMS = 8
@@ -10,11 +10,12 @@ export const ITEM_POOL: Item[] = [
   'magnifier', 'beer', 'saw', 'cigarette', 'handcuffs',
   'phone', 'inverter', 'medicine', 'adrenaline',
 ]
+export const MULTIPLAYER_ITEM_POOL: Item[] = [...ITEM_POOL, 'jammer']
 
 const itemNames: Record<Item, string> = {
   magnifier: '돋보기', beer: '맥주', saw: '톱', cigarette: '담배',
   handcuffs: '수갑', phone: '버너폰', inverter: '인버터',
-  medicine: '유통기한 약', adrenaline: '아드레날린',
+  medicine: '유통기한 약', adrenaline: '아드레날린', jammer: '전파 방해 장치',
 }
 
 type Forecast = { position: number; shell: Shell }
@@ -59,19 +60,10 @@ export function makeChamber(random = Math.random): Shell[] {
   return chamber
 }
 
-function makeOpeningChamber(random = Math.random): Shell[] {
-  const chamber: Shell[] = ['live', 'blank', 'blank', 'blank']
-  for (let i = chamber.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1))
-    ;[chamber[i], chamber[j]] = [chamber[j], chamber[i]]
-  }
-  return chamber
-}
-
 export function createGame(random = Math.random): GameState {
   return {
     health: { you: MAX_HEALTH, dealer: MAX_HEALTH },
-    chamber: makeOpeningChamber(random),
+    chamber: makeChamber(random),
     turn: 'you',
     loadNumber: 1,
     inventory: { you: [], dealer: [] },
@@ -112,19 +104,19 @@ function replenish(state: GameState, random = Math.random): GameState {
   }
 }
 
-function drawItems(count: number, random = Math.random): Item[] {
+function drawItems(count: number, random = Math.random, pool = ITEM_POOL): Item[] {
   const picked: Item[] = []
   for (let i = 0; i < count; i++) {
-    const options = ITEM_POOL.filter((item) => !picked.includes(item))
+    const options = pool.filter((item) => !picked.includes(item))
     picked.push(options[Math.floor(random() * options.length)])
   }
   return picked
 }
 
-export function grantItems(state: GameState, random = Math.random): GameState {
+export function grantItems(state: GameState, random = Math.random, pool = ITEM_POOL): GameState {
   if (state.status !== 'dealing') return state
-  const you = drawItems(Math.min(2, MAX_ITEMS - state.inventory.you.length), random)
-  const dealer = drawItems(Math.min(2, MAX_ITEMS - state.inventory.dealer.length), random)
+  const you = drawItems(Math.min(2, MAX_ITEMS - state.inventory.you.length), random, pool)
+  const dealer = drawItems(Math.min(2, MAX_ITEMS - state.inventory.dealer.length), random, pool)
   const summary = '아이템 지급: ' + (you.length ? you.map((item) => itemNames[item]).join(', ') : '빈 슬롯 없음')
   return {
     ...state,
@@ -177,7 +169,7 @@ export function canUseEffect(state: GameState, actor: Player, item: Item): boole
   if (item === 'cigarette' && state.health[actor] === MAX_HEALTH) return false
   if (item === 'saw' && state.saw[actor]) return false
   if (item === 'phone' && state.chamber.length < 2) return false
-  if (item === 'handcuffs' && state.skip[other(actor)]) return false
+  if ((item === 'handcuffs' || item === 'jammer') && state.skip[other(actor)]) return false
   if (item === 'adrenaline') return false
   return true
 }
@@ -212,9 +204,9 @@ function resolveEffect(state: GameState, actor: Player, item: Item, random = Mat
   } else if (item === 'cigarette') {
     next = { ...state, health: { ...state.health, [actor]: Math.min(MAX_HEALTH, state.health[actor] + 1) } }
     summary = subject(actor) + ' 체력 1을 회복했습니다.'
-  } else if (item === 'handcuffs') {
+  } else if (item === 'handcuffs' || item === 'jammer') {
     next = { ...state, skip: { ...state.skip, [other(actor)]: true } }
-    summary = subject(actor) + ' 수갑을 사용했습니다. 상대의 다음 턴을 건너뜁니다.'
+    summary = subject(actor) + (item === 'jammer' ? ' 전파 방해 장치를' : ' 수갑을') + ' 사용했습니다. 상대의 다음 턴을 건너뜁니다.'
   } else if (item === 'phone') {
     const position = 1 + Math.floor(random() * (state.chamber.length - 1))
     const shell = state.chamber[position]
@@ -309,7 +301,7 @@ export function dealerMove(state: GameState, random = Math.random): GameState {
     if (strengthen) return strengthen
   }
   if (!state.skip.you && liveChance >= 0.5) {
-    const restrain = tryItem('handcuffs')
+    const restrain = tryItem('handcuffs') ?? tryItem('jammer')
     if (restrain) return restrain
   }
   if (state.chamber.length > 2 && state.forecasts.dealer.length === 0) {

@@ -1,8 +1,10 @@
-import { mutation, query } from './_generated/server'
+import { internalMutation, mutation, query } from './_generated/server'
 import { v } from 'convex/values'
-import { applyItem, canUseEffect, canUseItem, createGame, grantItems, shoot, takeStolenItem, type GameState, type Player } from '../src/game'
+import { applyItem, canUseEffect, canUseItem, createGame, grantItems, shoot, takeStolenItem, MULTIPLAYER_ITEM_POOL, type GameState, type Player } from '../src/game'
 import { projectGame, type Seat } from '../src/multiplayer'
-import type { Doc } from './_generated/dataModel'
+import { isRoomSeatActive, ROOM_LEASE_MS } from '../src/roomPresence'
+import type { Doc, Id } from './_generated/dataModel'
+import type { MutationCtx } from './_generated/server'
 
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
@@ -20,11 +22,31 @@ function assertKey(key: string) {
   if (!/^[a-f0-9]{64}$/.test(key)) throw new Error('유효하지 않은 플레이어 키입니다.')
 }
 
-function seatFor(room: Doc<'rooms'>, key: string): Seat {
+function assertClientId(clientId: string) {
+  if (!/^[a-f0-9-]{36}$/.test(clientId)) throw new Error('유효하지 않은 브라우저 연결입니다.')
+}
+
+function seatFor(room: Doc<'rooms'>, key: string, clientId: string, now: number): Seat {
   assertKey(key)
-  if (room.hostKey === key) return 'host'
-  if (room.guestKey === key) return 'guest'
-  throw new Error('이 방에 참여하지 않았습니다.')
+  assertClientId(clientId)
+  if (room.hostKey === key && room.hostClientId === clientId && isRoomSeatActive(room.hostSeenAt, now)) return 'host'
+  if (room.guestKey === key && room.guestClientId === clientId && isRoomSeatActive(room.guestSeenAt, now)) return 'guest'
+  throw new Error('방 연결이 만료됐거나 다른 탭에서 접속했습니다.')
+}
+
+function clearGuest(room: Doc<'rooms'>) {
+  return {
+    guestKey: undefined, guestClientId: undefined, guestSeenAt: undefined,
+    guestName: undefined, guestReady: false, hostReady: false,
+    game: undefined, revision: (room.revision ?? 0) + 1,
+  }
+}
+
+async function leaveOtherRooms(ctx: MutationCtx, key: string, exceptId?: Id<'rooms'>) {
+  const hosted = await ctx.db.query('rooms').withIndex('by_host_key', (q) => q.eq('hostKey', key)).collect()
+  for (const room of hosted) if (room._id !== exceptId) await ctx.db.delete(room._id)
+  const joined = await ctx.db.query('rooms').withIndex('by_guest_key', (q) => q.eq('guestKey', key)).collect()
+  for (const room of joined) if (room._id !== exceptId) await ctx.db.patch(room._id, { ...clearGuest(room), updatedAt: Date.now() })
 }
 
 function actorFor(seat: Seat): Player {
@@ -32,6 +54,7 @@ function actorFor(seat: Seat): Player {
 }
 
 function activeGame(room: Doc<'rooms'>): GameState {
+  if (!isRoomSeatActive(room.guestSeenAt, Date.now())) throw new Error('상대의 연결이 끊겼습니다.')
   const game = room.game as GameState | undefined
   if (!game || game.status !== 'playing') throw new Error('지금은 행동할 수 없습니다.')
   return game
@@ -48,16 +71,18 @@ function randomCode() {
 }
 
 export const create = mutation({
-  args: { key: v.string(), name: v.string() },
-  handler: async (ctx, { key, name }) => {
+  args: { key: v.string(), clientId: v.string(), name: v.string() },
+  handler: async (ctx, { key, clientId, name }) => {
     assertKey(key)
+    assertClientId(clientId)
     const hostName = cleanName(name)
     for (let attempt = 0; attempt < 12; attempt++) {
       const code = randomCode()
       const existing = await ctx.db.query('rooms').withIndex('by_code', (q) => q.eq('code', code)).first()
       if (existing) continue
+      await leaveOtherRooms(ctx, key)
       const id = await ctx.db.insert('rooms', {
-        code, hostKey: key, hostName,
+        code, hostKey: key, hostClientId: clientId, hostSeenAt: Date.now(), hostName,
         hostReady: false, guestReady: false,
         revision: 0,
         updatedAt: Date.now(),
@@ -69,51 +94,115 @@ export const create = mutation({
 })
 
 export const join = mutation({
-  args: { code: v.string(), key: v.string(), name: v.string() },
-  handler: async (ctx, { code, key, name }) => {
+  args: { code: v.string(), key: v.string(), clientId: v.string(), name: v.string() },
+  handler: async (ctx, { code, key, clientId, name }) => {
     assertKey(key)
+    assertClientId(clientId)
     const guestName = cleanName(name)
     const room = await ctx.db.query('rooms').withIndex('by_code', (q) => q.eq('code', normalizeCode(code))).first()
     if (!room) throw new Error('방을 찾을 수 없습니다. 초대 코드를 확인하세요.')
-    if (room.hostKey === key || room.guestKey === key) return { id: room._id, code: room.code }
-    if (room.guestKey) throw new Error('이미 두 명이 참여 중인 방입니다.')
-    if (room.game && room.game.status !== 'over') throw new Error('진행 중인 방에는 참여할 수 없습니다.')
-    await ctx.db.patch(room._id, { guestKey: key, guestName, guestReady: false, hostReady: false, game: undefined, revision: (room.revision ?? 0) + 1, updatedAt: Date.now() })
+    const now = Date.now()
+    if (!isRoomSeatActive(room.hostSeenAt, now)) throw new Error('방장이 연결을 끊어 방이 만료됐습니다.')
+    if (room.hostKey === key) {
+      await leaveOtherRooms(ctx, key, room._id)
+      await ctx.db.patch(room._id, { hostClientId: clientId, hostSeenAt: now, updatedAt: now })
+      return { id: room._id, code: room.code }
+    }
+    const guestActive = isRoomSeatActive(room.guestSeenAt, now)
+    if (room.guestKey && room.guestKey !== key && guestActive) throw new Error('이미 두 명이 참여 중인 방입니다.')
+    if (room.guestKey && room.guestKey === key && guestActive) {
+      await leaveOtherRooms(ctx, key, room._id)
+      await ctx.db.patch(room._id, { guestClientId: clientId, guestSeenAt: now, updatedAt: now })
+      return { id: room._id, code: room.code }
+    }
+    if (room.game && room.game.status !== 'over' && guestActive) throw new Error('진행 중인 방에는 참여할 수 없습니다.')
+    await leaveOtherRooms(ctx, key, room._id)
+    await ctx.db.patch(room._id, { guestKey: key, guestClientId: clientId, guestSeenAt: now, guestName, guestReady: false, hostReady: false, game: undefined, revision: (room.revision ?? 0) + 1, updatedAt: now })
     return { id: room._id, code: room.code }
   },
 })
 
+export const resume = mutation({
+  args: { id: v.id('rooms'), key: v.string(), clientId: v.string() },
+  handler: async (ctx, { id, key, clientId }) => {
+    assertKey(key)
+    assertClientId(clientId)
+    const room = await ctx.db.get(id)
+    if (!room) return false
+    const now = Date.now()
+    if (!isRoomSeatActive(room.hostSeenAt, now)) return false
+    if (room.hostKey === key) {
+      await ctx.db.patch(id, { hostClientId: clientId, hostSeenAt: now, updatedAt: now })
+      return true
+    }
+    if (room.guestKey === key && isRoomSeatActive(room.guestSeenAt, now)) {
+      await ctx.db.patch(id, { guestClientId: clientId, guestSeenAt: now, updatedAt: now })
+      return true
+    }
+    return false
+  },
+})
+
+export const heartbeat = mutation({
+  args: { id: v.id('rooms'), key: v.string(), clientId: v.string() },
+  handler: async (ctx, { id, key, clientId }) => {
+    const room = await ctx.db.get(id)
+    if (!room) return false
+    const now = Date.now()
+    try {
+      const seat = seatFor(room, key, clientId, now)
+      if (!isRoomSeatActive(room.hostSeenAt, now)) return false
+      if (seat === 'host') {
+        const expiredGuest = room.guestKey && !isRoomSeatActive(room.guestSeenAt, now)
+        await ctx.db.patch(id, expiredGuest
+          ? { ...clearGuest(room), hostSeenAt: now, updatedAt: now }
+          : { hostSeenAt: now, updatedAt: now })
+      } else {
+        await ctx.db.patch(id, { guestSeenAt: now, updatedAt: now })
+      }
+      return true
+    } catch {
+      return false
+    }
+  },
+})
+
 export const view = query({
-  args: { id: v.id('rooms'), key: v.string() },
-  handler: async (ctx, { id, key }) => {
+  args: { id: v.id('rooms'), key: v.string(), clientId: v.string() },
+  handler: async (ctx, { id, key, clientId }) => {
     if (!/^[a-f0-9]{64}$/.test(key)) return null
     const room = await ctx.db.get(id)
-    if (!room || (room.hostKey !== key && room.guestKey !== key)) return null
-    const seat = seatFor(room, key)
+    if (!room) return null
+    const now = Date.now()
+    let seat: Seat
+    try { seat = seatFor(room, key, clientId, now) }
+    catch { return null }
+    if (!isRoomSeatActive(room.hostSeenAt, now)) return null
+    const guestActive = Boolean(room.guestKey && isRoomSeatActive(room.guestSeenAt, now))
     return {
       id: room._id,
       code: room.code,
       revision: room.revision ?? 0,
       seat,
       selfName: seat === 'host' ? room.hostName : room.guestName ?? '참가자',
-      opponentName: seat === 'host' ? room.guestName ?? null : room.hostName,
+      opponentName: seat === 'host' ? guestActive ? room.guestName ?? null : null : room.hostName,
       selfReady: seat === 'host' ? room.hostReady : room.guestReady,
-      opponentReady: seat === 'host' ? room.guestReady : room.hostReady,
-      game: room.game ? projectGame(room.game as GameState, seat) : null,
+      opponentReady: seat === 'host' ? guestActive && room.guestReady : room.hostReady,
+      game: room.game && guestActive ? projectGame(room.game as GameState, seat) : null,
     }
   },
 })
 
 export const setReady = mutation({
-  args: { id: v.id('rooms'), key: v.string(), ready: v.boolean() },
-  handler: async (ctx, { id, key, ready }) => {
+  args: { id: v.id('rooms'), key: v.string(), clientId: v.string(), ready: v.boolean() },
+  handler: async (ctx, { id, key, clientId, ready }) => {
     const room = await ctx.db.get(id)
     if (!room) throw new Error('방을 찾을 수 없습니다.')
-    const seat = seatFor(room, key)
+    const seat = seatFor(room, key, clientId, Date.now())
     if (room.game && (room.game as GameState).status !== 'over') throw new Error('게임 진행 중에는 준비 상태를 바꿀 수 없습니다.')
     const hostReady = seat === 'host' ? ready : room.hostReady
     const guestReady = seat === 'guest' ? ready : room.guestReady
-    if (room.guestKey && hostReady && guestReady) {
+    if (room.guestKey && isRoomSeatActive(room.guestSeenAt, Date.now()) && hostReady && guestReady) {
       await ctx.db.patch(id, { hostReady: false, guestReady: false, game: createGame(), revision: (room.revision ?? 0) + 1, updatedAt: Date.now() })
     } else {
       await ctx.db.patch(id, { hostReady, guestReady, revision: (room.revision ?? 0) + 1, updatedAt: Date.now() })
@@ -123,11 +212,11 @@ export const setReady = mutation({
 })
 
 export const fire = mutation({
-  args: { id: v.id('rooms'), key: v.string(), target: v.union(v.literal('self'), v.literal('opponent')), revision: v.number() },
-  handler: async (ctx, { id, key, target, revision }) => {
+  args: { id: v.id('rooms'), key: v.string(), clientId: v.string(), target: v.union(v.literal('self'), v.literal('opponent')), revision: v.number() },
+  handler: async (ctx, { id, key, clientId, target, revision }) => {
     const room = await ctx.db.get(id)
     if (!room) throw new Error('방을 찾을 수 없습니다.')
-    const actor = actorFor(seatFor(room, key))
+    const actor = actorFor(seatFor(room, key, clientId, Date.now()))
     assertRevision(room, revision)
     const game = activeGame(room)
     if (game.turn !== actor || game.stealing) throw new Error('지금은 당신의 차례가 아닙니다.')
@@ -140,11 +229,11 @@ export const fire = mutation({
 })
 
 export const useItem = mutation({
-  args: { id: v.id('rooms'), key: v.string(), slot: v.number(), revision: v.number() },
-  handler: async (ctx, { id, key, slot, revision }) => {
+  args: { id: v.id('rooms'), key: v.string(), clientId: v.string(), slot: v.number(), revision: v.number() },
+  handler: async (ctx, { id, key, clientId, slot, revision }) => {
     const room = await ctx.db.get(id)
     if (!room) throw new Error('방을 찾을 수 없습니다.')
-    const actor = actorFor(seatFor(room, key))
+    const actor = actorFor(seatFor(room, key, clientId, Date.now()))
     assertRevision(room, revision)
     const game = activeGame(room)
     if (!Number.isInteger(slot) || !canUseItem(game, actor, slot)) throw new Error('이 아이템은 지금 사용할 수 없습니다.')
@@ -154,11 +243,11 @@ export const useItem = mutation({
 })
 
 export const takeItem = mutation({
-  args: { id: v.id('rooms'), key: v.string(), slot: v.number(), revision: v.number() },
-  handler: async (ctx, { id, key, slot, revision }) => {
+  args: { id: v.id('rooms'), key: v.string(), clientId: v.string(), slot: v.number(), revision: v.number() },
+  handler: async (ctx, { id, key, clientId, slot, revision }) => {
     const room = await ctx.db.get(id)
     if (!room) throw new Error('방을 찾을 수 없습니다.')
-    const actor = actorFor(seatFor(room, key))
+    const actor = actorFor(seatFor(room, key, clientId, Date.now()))
     assertRevision(room, revision)
     const game = activeGame(room)
     const victim = actor === 'you' ? 'dealer' : 'you'
@@ -172,31 +261,41 @@ export const takeItem = mutation({
 })
 
 export const openBox = mutation({
-  args: { id: v.id('rooms'), key: v.string(), revision: v.number() },
-  handler: async (ctx, { id, key, revision }) => {
+  args: { id: v.id('rooms'), key: v.string(), clientId: v.string(), revision: v.number() },
+  handler: async (ctx, { id, key, clientId, revision }) => {
     const room = await ctx.db.get(id)
     if (!room) throw new Error('방을 찾을 수 없습니다.')
-    const actor = actorFor(seatFor(room, key))
+    const actor = actorFor(seatFor(room, key, clientId, Date.now()))
     assertRevision(room, revision)
     const game = room.game as GameState | undefined
     if (!game || game.status !== 'dealing') throw new Error('열 수 있는 아이템 상자가 없습니다.')
+    if (!isRoomSeatActive(room.guestSeenAt, Date.now())) throw new Error('상대의 연결이 끊겼습니다.')
     if (game.turn !== actor) throw new Error('상자를 열 차례가 아닙니다.')
-    await ctx.db.patch(id, { game: grantItems(game), revision: revision + 1, updatedAt: Date.now() })
+    await ctx.db.patch(id, { game: grantItems(game, Math.random, MULTIPLAYER_ITEM_POOL), revision: revision + 1, updatedAt: Date.now() })
     return null
   },
 })
 
 export const leave = mutation({
-  args: { id: v.id('rooms'), key: v.string() },
-  handler: async (ctx, { id, key }) => {
+  args: { id: v.id('rooms'), key: v.string(), clientId: v.string() },
+  handler: async (ctx, { id, key, clientId }) => {
     const room = await ctx.db.get(id)
     if (!room) return null
-    const seat = seatFor(room, key)
+    if (room.hostKey !== key && room.guestKey !== key) return null
+    if (room.hostKey === key && room.hostClientId !== clientId) return null
+    if (room.guestKey === key && room.guestClientId !== clientId) return null
+    const seat = room.hostKey === key ? 'host' : 'guest'
     if (seat === 'host') await ctx.db.delete(id)
-    else await ctx.db.patch(id, {
-      guestKey: undefined, guestName: undefined, guestReady: false,
-      hostReady: false, game: undefined, revision: (room.revision ?? 0) + 1, updatedAt: Date.now(),
-    })
+    else await ctx.db.patch(id, { ...clearGuest(room), updatedAt: Date.now() })
     return null
+  },
+})
+
+export const cleanupStale = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - ROOM_LEASE_MS
+    const stale = await ctx.db.query('rooms').withIndex('by_updated_at', (q) => q.lt('updatedAt', cutoff)).take(100)
+    for (const room of stale) await ctx.db.delete(room._id)
   },
 })
