@@ -1,0 +1,75 @@
+{
+  "contract": "THE CHAMBER is a Korean Buckshot Roulette mechanics prototype with solo CPU play and a two-player Convex room. The first load begins with eight empty item slots and one live plus three blank shells. On later loads, opening a supply box grants two random items to each side, up to eight held items. Convex holds the chamber order, validates turns and items, and sends each player only their private shell information. The gun aims toward the chosen target before firing. Target: keyboard and touch at 390x844 and 1440x900.",
+  "targetViewports": ["390x844", "1440x900"],
+  "accessibility": {
+    "status": "pass",
+    "evidence": "Buttons and rules appear in the accessibility tree. Tab focus had a visible 2px outline and Enter activated the focused fire button. Live status was announced, health uses meter values, and the mobile Lighthouse accessibility audit scored 100 after correcting contrast."
+  },
+  "responsive": {
+    "status": "pass",
+    "evidence": "At an emulated 390x844 touch viewport, innerWidth and document scrollWidth both measured 390; the table and two fire controls were visible without horizontal overflow. Desktop 1440x900 kept the game and item panel side by side."
+  },
+  "contentStates": {
+    "loading": {
+      "status": "not-applicable",
+      "reason": "The local game is initialized synchronously and has no external data request."
+    },
+    "empty": {
+      "status": "pass",
+      "evidence": "A fresh browser load displayed eight empty item slots and no usable item buttons. After the opening chamber ended, the supply box button appeared; opening it filled two separate player slots. This was also verified with two Convex room participants."
+    },
+    "error": {
+      "status": "not-applicable",
+      "reason": "This prototype has no network or persisted data operation that can present a recoverable user error."
+    },
+    "partial": {
+      "status": "not-applicable",
+      "reason": "There is no partial data fetch; hidden shell order is intentional game information."
+    },
+    "success": {
+      "status": "pass",
+      "evidence": "A complete browser playthrough displayed the dealer win message and a New Game button. Clicking the button reset health, chamber, log, and load number."
+    },
+    "permission": {
+      "status": "not-applicable",
+      "reason": "The local prototype does not request account, camera, microphone, or multiplayer room permissions."
+    }
+  },
+  "renderedEvidence": [
+    {
+      "viewport": "390x844",
+      "artifact": "mobile.jpg",
+      "observation": "Touch layout keeps the table, shell counts, and both firing controls readable. Eight empty item slots stack below the table without horizontal overflow."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "desktop.jpg",
+      "observation": "Table, player and dealer status, eight empty item slots, and action log are visible in the same layout."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "items-dealt.jpg",
+      "observation": "After the supply box was opened, two item cards appeared in individual slots and the remaining six slots stayed empty."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "multiplayer-room.jpg",
+      "observation": "A cloud Convex room shows opponent and player status, synchronized shell counts, and turn-controlled fire buttons."
+    },
+    {
+      "viewport": "390x844",
+      "artifact": "multiplayer-mobile.jpg",
+      "observation": "The two-player game fits a 390px touch viewport without horizontal overflow."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "aim-dealer.jpg",
+      "observation": "Rendered dealer aiming style points the muzzle into the dealer plate. Button interaction separately verified the aim-dealer class and disabled controls."
+    },
+    {
+      "viewport": "1440x900",
+      "artifact": "aim-self.jpg",
+      "observation": "Rendered self aiming style points the muzzle toward the player plate. Button interaction separately verified the aim-you class and disabled controls."
+    }
+  ]
+}

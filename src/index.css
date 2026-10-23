@@ -1,0 +1,13 @@
+:root {
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  color: #e9e5d6;
+  background: #0d1110;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button { font: inherit; }
+button:focus-visible { outline: 2px solid #f2c16f; outline-offset: 3px; }
+::selection { background: #a46c3e; color: #fff; }
