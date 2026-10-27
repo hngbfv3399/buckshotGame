@@ -92,15 +92,18 @@ function nextIntel(state: GameState) {
 
 function replenish(state: GameState, random = Math.random): GameState {
   const loadNumber = state.loadNumber + 1
+  const suppliesArrive = loadNumber % 2 === 0
   return {
     ...state,
     chamber: makeChamber(random),
     loadNumber,
     known: { you: null, dealer: null },
     forecasts: { you: [], dealer: [] },
-    status: 'dealing',
-    message: '새 장전. 아이템 상자를 열어 양쪽에 도구를 지급하세요.',
-    log: appendLog(state.log, String(loadNumber) + '번째 장전. 아이템 상자가 도착했습니다.'),
+    status: suppliesArrive ? 'dealing' : 'playing',
+    message: suppliesArrive
+      ? '새 장전. 아이템 상자를 열어 양쪽에 도구를 지급하세요.'
+      : '새 장전. 이번에는 아이템 보급 없이 계속 진행합니다.',
+    log: appendLog(state.log, String(loadNumber) + '번째 장전. ' + (suppliesArrive ? '아이템 상자가 도착했습니다.' : '아이템 보급은 없습니다.')),
   }
 }
 

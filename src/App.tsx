@@ -69,7 +69,7 @@ function SoloApp({ onMultiplayer }: { onMultiplayer: () => void }) {
       <div><strong>목표</strong><p>딜러의 체력을 먼저 0으로 만드세요.</p></div>
       <div><strong>턴</strong><p>상대에게 쏘면 턴이 넘어갑니다. 자신에게 공포탄을 쏘면 한 번 더 행동합니다.</p></div>
       <div><strong>탄환</strong><p>실탄과 공포탄의 개수만 공개됩니다. 순서는 매 장전마다 섞입니다.</p></div>
-      <div><strong>아이템</strong><p>첫 장전은 빈 슬롯으로 시작합니다. 이후 장전마다 상자를 열어 양쪽에 두 개씩 지급합니다.</p></div>
+      <div><strong>아이템</strong><p>첫 장전은 빈 슬롯으로 시작합니다. 2번째 장전부터 두 장전마다 상자를 열어 양쪽에 두 개씩 지급합니다.</p></div>
     </section>}
     <div className="layout">
       <section className="table-frame" aria-label="벅샷 룰렛 플레이 테이블">
@@ -119,7 +119,7 @@ function SoloApp({ onMultiplayer }: { onMultiplayer: () => void }) {
               </button>
               : <div className="empty-item" key={slot} aria-label={'빈 아이템 슬롯 ' + (slot + 1)}><span>{String(slot + 1).padStart(2, '0')}</span><small>EMPTY</small></div>
           })}</div>
-          {game.loadNumber === 1 && game.inventory.you.length === 0 && <p className="inventory-hint">첫 장전은 도구 없이 시작합니다. 다음 장전에 아이템 상자가 도착합니다.</p>}
+          {game.loadNumber === 1 && game.inventory.you.length === 0 && <p className="inventory-hint">첫 장전은 도구 없이 시작합니다. 2번째 장전부터 두 장전마다 아이템 상자가 도착합니다.</p>}
           <div className="intel-row"><span>현재 탄환</span><strong>{known === null ? '알 수 없음' : known === 'live' ? '실탄' : '공포탄'}</strong></div>
           {game.forecasts.you.map((entry, index) => <div className="forecast-row" key={index}>버너폰 · {entry.position + 1}번째 탄환 <strong>{entry.shell === 'live' ? '실탄' : '공포탄'}</strong></div>)}
           {game.saw.you && <p className="effect-note">톱 효과 준비: 다음 실탄 피해 +1</p>}

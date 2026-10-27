@@ -48,12 +48,31 @@ test('상대에게 공포탄을 쏘면 턴이 넘어간다', () => {
 test('빈 장전 뒤 상자를 열어 양쪽에 두 종류씩 지급한다', () => {
   const reload = shoot(state(['blank']), 'you', 'you', () => 0.2)
   assert.equal(reload.status, 'dealing')
+  assert.equal(reload.loadNumber, 2)
   assert.deepEqual(reload.inventory.you, [])
   const dealt = grantItems(reload, () => 0.2)
   assert.equal(dealt.status, 'playing')
   assert.equal(dealt.inventory.you.length, 2)
   assert.equal(dealt.inventory.dealer.length, 2)
   assert.notEqual(dealt.inventory.you[0], dealt.inventory.you[1])
+})
+
+test('아이템 보급은 2번째 장전부터 두 장전마다 도착한다', () => {
+  const second = shoot(state(['blank']), 'you', 'you', () => 0.2)
+  const supplied = grantItems(second, () => 0.2)
+  const third = shoot({ ...supplied, chamber: ['blank'] }, 'you', 'you', () => 0.2)
+  assert.equal(third.loadNumber, 3)
+  assert.equal(third.status, 'playing')
+  assert.deepEqual(third.inventory, supplied.inventory)
+  assert.match(third.message, /보급 없이/)
+  assert.equal(grantItems(third), third)
+
+  const fourth = shoot({ ...third, chamber: ['blank'] }, 'you', 'you', () => 0.2)
+  assert.equal(fourth.loadNumber, 4)
+  assert.equal(fourth.status, 'dealing')
+  const nextSupply = grantItems(fourth, () => 0.2)
+  assert.equal(nextSupply.inventory.you.length, 4)
+  assert.equal(nextSupply.inventory.dealer.length, 4)
 })
 
 test('아이템은 8개 슬롯을 넘지 않고, 선택한 슬롯 하나만 소비한다', () => {
