@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGame } from '../src/game.ts'
-import { projectGame } from '../src/multiplayer.ts'
+import { createMultiplayerGame, projectGame } from '../src/multiplayer.ts'
 import { shouldRestoreRoom } from '../src/roomSession.ts'
 import { isRoomSeatActive, ROOM_LEASE_MS } from '../src/roomPresence.ts'
 
@@ -15,6 +15,19 @@ test('초대 링크가 없으면 지난 방에 다시 들어가지 않는다', (
   assert.equal(shouldRestoreRoom('', 'ABC123'), false)
   assert.equal(shouldRestoreRoom('?room=ABC123', 'ABC123'), true)
   assert.equal(shouldRestoreRoom('?room=NEW123', 'ABC123'), false)
+})
+
+test('멀티플레이 선공은 방장과 참가자 모두 가능하고 화면에 맞게 표시된다', () => {
+  const hostFirst = createMultiplayerGame(() => 0.2)
+  const guestFirst = createMultiplayerGame(() => 0.8)
+  assert.equal(hostFirst.turn, 'you')
+  assert.equal(guestFirst.turn, 'dealer')
+  assert.equal(projectGame(hostFirst, 'host').turn, 'you')
+  assert.equal(projectGame(hostFirst, 'guest').turn, 'dealer')
+  assert.equal(projectGame(guestFirst, 'host').turn, 'dealer')
+  assert.equal(projectGame(guestFirst, 'guest').turn, 'you')
+  assert.match(projectGame(guestFirst, 'guest').message, /^당신이 선공입니다\./)
+  assert.match(projectGame(guestFirst, 'host').message, /^상대가 선공입니다\./)
 })
 
 test('서버 화면은 각자 본 탄환 정보만 전달한다', () => {

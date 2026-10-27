@@ -1,7 +1,7 @@
 import { internalMutation, mutation, query } from './_generated/server'
 import { v } from 'convex/values'
-import { applyItem, canUseEffect, canUseItem, createGame, grantItems, shoot, takeStolenItem, MULTIPLAYER_ITEM_POOL, type GameState, type Player } from '../src/game'
-import { projectGame, type Seat } from '../src/multiplayer'
+import { applyItem, canUseEffect, canUseItem, grantItems, shoot, takeStolenItem, MULTIPLAYER_ITEM_POOL, type GameState, type Player } from '../src/game'
+import { createMultiplayerGame, projectGame, type Seat } from '../src/multiplayer'
 import { isRoomSeatActive, ROOM_LEASE_MS } from '../src/roomPresence'
 import type { Doc, Id } from './_generated/dataModel'
 import type { MutationCtx } from './_generated/server'
@@ -203,7 +203,7 @@ export const setReady = mutation({
     const hostReady = seat === 'host' ? ready : room.hostReady
     const guestReady = seat === 'guest' ? ready : room.guestReady
     if (room.guestKey && isRoomSeatActive(room.guestSeenAt, Date.now()) && hostReady && guestReady) {
-      await ctx.db.patch(id, { hostReady: false, guestReady: false, game: createGame(), revision: (room.revision ?? 0) + 1, updatedAt: Date.now() })
+      await ctx.db.patch(id, { hostReady: false, guestReady: false, game: createMultiplayerGame(), revision: (room.revision ?? 0) + 1, updatedAt: Date.now() })
     } else {
       await ctx.db.patch(id, { hostReady, guestReady, revision: (room.revision ?? 0) + 1, updatedAt: Date.now() })
     }

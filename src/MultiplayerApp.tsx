@@ -206,7 +206,7 @@ export default function MultiplayerApp({ onBack }: { onBack: () => void }) {
       <div className="top-actions"><span className="prototype-badge">CONVEX / LIVE ROOM</span><button className="text-button" disabled={busy} onClick={() => void handleLeave(true)}>혼자 하기</button></div>
     </header>
     {!roomId ? <section className="lobby-layout">
-      <div className="lobby-intro"><span className="eyebrow">PRIVATE ROOM / 2 PLAYERS</span><h1>같은 테이블에서<br />서로를 겨누세요.</h1><p>초대 코드로 한 명을 부르고, 두 사람이 준비하면 서버에서 탄환을 섞어 게임을 시작합니다.</p><div className="lobby-facts"><span>02 <small>PLAYERS</small></span><span>10 <small>ITEMS</small></span><span>01 <small>HIDDEN CHAMBER</small></span></div></div>
+      <div className="lobby-intro"><span className="eyebrow">PRIVATE ROOM / 2 PLAYERS</span><h1>같은 테이블에서<br />서로를 겨누세요.</h1><p>초대 코드로 한 명을 부르고, 두 사람이 준비하면 서버에서 탄환과 선공 순서를 무작위로 정해 게임을 시작합니다.</p><div className="lobby-facts"><span>02 <small>PLAYERS</small></span><span>10 <small>ITEMS</small></span><span>01 <small>HIDDEN CHAMBER</small></span></div></div>
       <div className="lobby-card"><div className="section-header"><span>01 / 입장</span><strong>방 만들기 또는 참가</strong></div>
         <label className="lobby-label" htmlFor="player-name">플레이어 이름</label><input id="player-name" value={name} maxLength={18} onChange={(event) => setName(event.target.value)} placeholder="이름을 입력하세요" />
         <button className="primary-button lobby-create" disabled={busy || !name.trim()} onClick={handleCreate}>새 방 만들기 <span>↗</span></button>

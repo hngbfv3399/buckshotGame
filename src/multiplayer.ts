@@ -1,4 +1,4 @@
-import { getCounts, type GameState, type Item, type Player, type Shell } from './game.ts'
+import { createGame, getCounts, type GameState, type Item, type Player, type Shell } from './game.ts'
 
 export type Seat = 'host' | 'guest'
 
@@ -29,6 +29,18 @@ export type RoomView = {
   selfReady: boolean
   opponentReady: boolean
   game: MultiplayerGame | null
+}
+
+export function createMultiplayerGame(random = Math.random): GameState {
+  const game = createGame(random)
+  const turn: Player = random() < 0.5 ? 'you' : 'dealer'
+  const firstTurn = turn === 'you' ? '당신이 선공입니다.' : '딜러가 선공입니다.'
+  return {
+    ...game,
+    turn,
+    message: firstTurn + ' ' + game.message,
+    log: [firstTurn, ...game.log],
+  }
 }
 
 function localize(message: string, seat: Seat) {
