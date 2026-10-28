@@ -6,7 +6,7 @@ import MultiplayerApp from './MultiplayerApp'
 import './App.css'
 
 function App() {
-  const [mode, setMode] = useState<'solo' | 'multi'>(() => new URLSearchParams(location.search).has('room') ? 'multi' : 'solo')
+  const [mode, setMode] = useState<'solo' | 'multi'>(() => sessionStorage.getItem('chamber-room-id') ? 'multi' : 'solo')
   const backToSolo = () => {
     history.replaceState(null, '', location.pathname)
     setMode('solo')

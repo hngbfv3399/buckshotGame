@@ -21,7 +21,6 @@ export type MultiplayerGame = {
 
 export type RoomView = {
   id: string
-  code: string
   revision: number
   seat: Seat
   selfName: string

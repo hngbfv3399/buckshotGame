@@ -11,16 +11,27 @@
 .lobby-card input:focus { border-color: #d3a368; box-shadow: 0 0 0 2px #d3a36833; }
 .lobby-create, .secondary-button { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-top: 15px; font-size: 16px; font-weight: 700; }
 .lobby-create:disabled, .secondary-button:disabled, .ready-button:disabled { opacity: .48; cursor: not-allowed; }
+.guest-help { margin: 16px 0 0; color: #aeb8a8; font-size: 12px; line-height: 1.5; }
+.guest-identity { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; padding: 12px 0; color: #e3c08b; font-size: 13px; }
+.guest-identity small { color: #aeb8a8; font-size: 11px; }
+.room-list { display: grid; gap: 9px; max-height: 340px; margin-top: 16px; overflow-y: auto; }
+.room-list-empty { margin: 0; padding: 20px 12px; border: 1px dashed #596452; color: #aeb8a8; font-size: 12px; line-height: 1.5; }
+.room-list-entry { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 16px 13px; border: 1px solid #586954; background: #202b22; color: #e7e5d5; text-align: left; cursor: pointer; }
+.room-list-entry:hover:not(:disabled), .room-list-entry:focus-visible { border-color: #d4a46c; background: #2c382d; }
+.room-list-entry:disabled { opacity: .55; cursor: not-allowed; }
+.room-list-entry span { display: grid; gap: 6px; min-width: 0; }
+.room-list-entry strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.room-list-entry small { color: #aeb8a8; font-size: 11px; }
+.room-list-entry b { flex: none; color: #e3b678; font-size: 12px; }
 .lobby-divider { display: flex; align-items: center; gap: 12px; margin-top: 30px; color: #929d8c; font-size: 11px; }
 .lobby-divider::after { flex: 1; height: 1px; content: ''; background: #414c3f; }
 .secondary-button { min-height: 56px; padding: 12px 15px; border: 1px solid #8a9a81; background: #2a352b; color: #e7e5d5; cursor: pointer; }
 .secondary-button:hover:not(:disabled) { background: #3c4b3d; }
 .room-error { margin: 14px 0 0; color: #f5bba7; font-size: 12px; line-height: 1.5; }
-.room-notice { color: #e7bd80 !important; }
 .room-loading { min-height: 400px; display: grid; place-content: center; gap: 12px; color: #e8d8bb; text-align: center; }
-.room-code-box { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; width: fit-content; margin: 40px 0 24px; padding: 20px; border: 1px solid #9c835d; background: #181e18; }
-.room-code-box > span { color: #aeb3a2; font-size: 12px; }
-.room-code-box strong { color: #e6b97b; font: 32px ui-monospace, monospace; letter-spacing: .18em; }
+.room-visibility-card { display: grid; gap: 9px; width: fit-content; margin: 40px 0 24px; padding: 20px; border: 1px solid #9c835d; background: #181e18; }
+.room-visibility-card > span { color: #aeb3a2; font-size: 12px; }
+.room-visibility-card strong { color: #e6b97b; font-size: 22px; }
 .seat-row { display: flex; justify-content: space-between; gap: 10px; padding: 20px 0; border-bottom: 1px solid #3e493e; color: #d8d9c6; font-size: 13px; }
 .seat-row strong { color: #dfb67e; white-space: nowrap; }
 .ready-button { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-top: 28px; font-size: 17px; font-weight: 700; }
@@ -31,4 +42,4 @@
 .rematch-controls .ready-button { margin-top: 0; width: 250px; flex: none; }
 .rematch-controls > span { color: #bcc4b3; font-size: 12px; }
 @media (max-width: 900px) { .lobby-layout, .room-waiting { grid-template-columns: 1fr; min-height: 0; } .lobby-facts { margin-top: 50px; } }
-@media (max-width: 560px) { .lobby-intro, .room-waiting-main { padding: 32px 22px; } .lobby-intro h1, .room-waiting-main h1 { font-size: 40px; } .lobby-card, .room-waiting-side { padding: 21px; } .room-code-box strong { font-size: 25px; } .rematch-controls { display: block; } .rematch-controls .ready-button { width: 100%; margin-bottom: 12px; } }
+@media (max-width: 560px) { .lobby-intro, .room-waiting-main { padding: 32px 22px; } .lobby-intro h1, .room-waiting-main h1 { font-size: 40px; } .lobby-card, .room-waiting-side { padding: 21px; } .room-visibility-card strong { font-size: 20px; } .rematch-controls { display: block; } .rematch-controls .ready-button { width: 100%; margin-bottom: 12px; } }

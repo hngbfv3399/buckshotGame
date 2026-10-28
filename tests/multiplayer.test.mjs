@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGame } from '../src/game.ts'
 import { createMultiplayerGame, projectGame } from '../src/multiplayer.ts'
-import { shouldRestoreRoom } from '../src/roomSession.ts'
+import { GUEST_SESSION_MS, parseGuestSession } from '../src/guestSession.ts'
 import { isRoomSeatActive, ROOM_LEASE_MS } from '../src/roomPresence.ts'
 
 test('응답이 끊긴 참가자의 방 자리는 제한 시간 뒤 만료된다', () => {
@@ -11,10 +11,11 @@ test('응답이 끊긴 참가자의 방 자리는 제한 시간 뒤 만료된다
   assert.equal(isRoomSeatActive(undefined, 1000), false)
 })
 
-test('초대 링크가 없으면 지난 방에 다시 들어가지 않는다', () => {
-  assert.equal(shouldRestoreRoom('', 'ABC123'), false)
-  assert.equal(shouldRestoreRoom('?room=ABC123', 'ABC123'), true)
-  assert.equal(shouldRestoreRoom('?room=NEW123', 'ABC123'), false)
+test('게스트 로그인은 한 시간 동안만 복구된다', () => {
+  const saved = JSON.stringify({ key: 'a'.repeat(64), name: '테스터', expiresAt: 1000 + GUEST_SESSION_MS })
+  assert.equal(parseGuestSession(saved, 1000 + GUEST_SESSION_MS - 1)?.name, '테스터')
+  assert.equal(parseGuestSession(saved, 1000 + GUEST_SESSION_MS), null)
+  assert.equal(parseGuestSession('{bad json'), null)
 })
 
 test('멀티플레이 선공은 방장과 참가자 모두 가능하고 화면에 맞게 표시된다', () => {

@@ -2,6 +2,12 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
 export default defineSchema({
+  guests: defineTable({
+    key: v.string(),
+    name: v.string(),
+    expiresAt: v.number(),
+  }).index('by_key', ['key'])
+    .index('by_expires_at', ['expiresAt']),
   rooms: defineTable({
     code: v.string(),
     hostKey: v.string(),
